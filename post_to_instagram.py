@@ -1,3 +1,4 @@
+
 import requests
 import os
 import random
@@ -135,32 +136,36 @@ def create_meme_image(text, output_path):
     print(f"✓ Created: {output_path}")
     return output_path
 
-def upload_to_imgur(image_path):
+def upload_to_imgbb(image_path):
     """
-    Upload image to Imgur (free, no account needed)
+    Upload image to ImgBB (free image hosting)
     Returns the direct image URL
     """
-    client_id = os.getenv('IMGUR_CLIENT_ID')
+    api_key = os.getenv('IMGBB_API_KEY')
     
-    url = "https://api.imgur.com/3/image"
+    if not api_key:
+        print("❌ IMGBB_API_KEY not found in secrets")
+        return None
     
-    headers = {}
-    if client_id:
-        headers['Authorization'] = f'Client-ID {client_id}'
+    url = "https://api.imgbb.com/1/upload"
     
     with open(image_path, 'rb') as f:
-        response = requests.post(
-            url,
-            headers=headers,
-            files={'image': f}
-        )
+        import base64
+        image_data = base64.b64encode(f.read()).decode('utf-8')
+    
+    payload = {
+        'key': api_key,
+        'image': image_data,
+    }
+    
+    response = requests.post(url, data=payload)
     
     if response.status_code == 200:
-        image_url = response.json()['data']['link']
+        image_url = response.json()['data']['url']
         print(f"✓ Uploaded: {image_url}")
         return image_url
     else:
-        print(f"✗ Imgur upload failed: {response.text}")
+        print(f"✗ ImgBB upload failed: {response.text}")
         return None
 
 def create_instagram_media_container(image_url, access_token, account_id, is_carousel_item=False):
@@ -254,9 +259,9 @@ def main():
         image_path = f'meme_{i}.png'
         create_meme_image(meme_text, image_path)
         
-        # Upload to Imgur
+        # Upload to ImgBB
         print(f"📤 Uploading image {i}...")
-        image_url = upload_to_imgur(image_path)
+        image_url = upload_to_imgbb(image_path)
         
         if not image_url:
             print(f"❌ Failed to upload image {i}")
