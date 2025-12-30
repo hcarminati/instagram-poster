@@ -1,14 +1,110 @@
 
+# post_to_instagram.py
+
 import requests
 import os
 import random
-import time
 from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime
+from groq import Groq
 
-# Unique Pisces meme texts - one per day for variety
-PISCES_MEMES = [
-    "Pisces: cries in the shower\nso no one can tell",
+def generate_pisces_memes_with_ai(count=5):
+    """
+    Generate fresh Pisces meme texts using Groq AI (FREE!)
+    """
+    api_key = os.getenv('GROQ_API_KEY')
+    
+    if not api_key:
+        print("⚠️ GROQ_API_KEY not found, using fallback memes")
+        return get_fallback_memes(count), get_fallback_caption()
+    
+    try:
+        client = Groq(api_key=api_key)
+        
+        # Generate meme texts
+        meme_prompt = f"""Generate {count} funny, relatable Pisces zodiac meme texts. Each should be:
+- 1-3 short lines (max 10 words per line)
+- About Pisces personality traits (emotional, daydreaming, avoidant, sensitive, intuitive, etc)
+- Humorous and self-deprecating
+- Format: exactly one meme per line, separated by blank lines
+- No numbering, no bullets, just the text
+
+Examples:
+Pisces: cries in the shower
+so no one can tell
+
+Pisces avoiding confrontation
+like it's their job
+
+POV: Pisces just felt
+a vibe shift
+
+Now generate {count} NEW unique Pisces memes:"""
+
+        meme_completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": meme_prompt}],
+            model="llama-3.3-70b-versatile",
+            temperature=1.0,
+            max_tokens=500,
+        )
+        
+        # Parse meme response
+        response_text = meme_completion.choices[0].message.content.strip()
+        memes = [meme.strip() for meme in response_text.split('\n\n') if meme.strip()]
+        memes = [meme.split('. ', 1)[-1] if '. ' in meme[:5] else meme for meme in memes]
+        
+        # If we got fewer than requested, add fallbacks
+        if len(memes) < count:
+            memes.extend(get_fallback_memes(count - len(memes)))
+        
+        print(f"✨ Generated {len(memes)} fresh AI memes")
+        
+        # Generate Instagram caption
+        caption_prompt = """Generate a short, engaging Instagram caption for a Pisces zodiac meme carousel post. 
+Requirements:
+- Keep it under 100 characters
+- Use 2-3 relevant emojis (pisces ♓️, fish 🐟, water 💙, etc)
+- Include 3-5 hashtags: #pisces #zodiac #astrology and similar
+- Make it relatable and funny
+- Examples: "why am I like this 😭 #pisces #zodiac #memes" or "pisces energy today ♓️💙 #astrology #relatable"
+
+Generate ONE caption:"""
+
+        caption_completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": caption_prompt}],
+            model="llama-3.3-70b-versatile",
+            temperature=1.2,
+            max_tokens=100,
+        )
+        
+        caption = caption_completion.choices[0].message.content.strip()
+        # Remove quotes if AI added them
+        caption = caption.strip('"\'')
+        
+        print(f"✨ Generated caption: {caption[:50]}...")
+        
+        return memes[:count], caption
+        
+    except Exception as e:
+        print(f"⚠️ AI generation failed: {e}")
+        print("Using fallback memes instead")
+        return get_fallback_memes(count), get_fallback_caption()
+
+def get_fallback_caption():
+    """Fallback caption if AI fails"""
+    captions = [
+        "why am I like this 😭 #pisces #zodiac #astrology #memes",
+        "pisces things ♓️ #piscesseason #zodiacmemes #astrologymemes",
+        "tag a pisces 🐟 #pisces #zodiacsigns #horoscope",
+        "POV: you're a pisces #astrology #pisces #relatable",
+        "pisces energy 💙 #zodiac #pisces #meme",
+    ]
+    return random.choice(captions)
+
+def get_fallback_memes(count=5):
+    """Fallback memes if AI fails"""
+    fallback = [
+         "Pisces: cries in the shower\nso no one can tell",
     "POV: Pisces just felt\na vibe shift",
     "Pisces avoiding confrontation\nlike it's their job",
     "Pisces: I'm fine\n(currently having an\nexistential crisis)",
@@ -74,22 +170,8 @@ PISCES_MEMES = [
     "Pisces being cryptic\nfor no reason",
     "Pisces: silently judging\nyour energy",
     "Pisces living in their feels\n24/7/365",
-]
-
-# Instagram captions
-CAPTIONS = [
-    "why am I like this 😭 #pisces #zodiac #astrology #memes",
-    "pisces things ♓️ #piscesseason #zodiacmemes #astrologymemes",
-    "tag a pisces 🐟 #pisces #zodiacsigns #horoscope",
-    "POV: you're a pisces #astrology #pisces #relatable",
-    "pisces energy 💙 #zodiac #pisces #meme",
-    "felt this in my soul ♓️ #piscesseason #astrology",
-    "why you gotta call me out like this 😅 #pisces #zodiacmemes",
-    "pisces be like: #astrology #pisces #horoscope",
-    "it's a pisces thing ✨ #zodiac #piscesseason #memes",
-    "this is too accurate 💀 #pisces #astrology #zodiachumor",
-    "swipe for more pisces chaos ➡️ #pisces #zodiacmemes #carousel",
-]
+    ]
+    return random.sample(fallback, min(count, len(fallback)))
 
 def create_meme_image(text, output_path):
     """
@@ -111,7 +193,7 @@ def create_meme_image(text, output_path):
             font = ImageFont.truetype("arial.ttf", 60)
         except:
             font = ImageFont.load_default()
-            print("Warning: Using default font. Install DejaVu fonts for better results.")
+            print("Warning: Using default font.")
     
     # Split text into lines
     lines = text.split('\n')
@@ -233,7 +315,7 @@ def publish_instagram_post(container_id, access_token, account_id):
 
 def main():
     """Main function"""
-    print("🎨 Generating 5 Pisces memes for carousel post...")
+    print("🎨 Generating 5 fresh AI-powered Pisces memes...")
     
     # Get Instagram credentials
     access_token = os.getenv('INSTAGRAM_ACCESS_TOKEN')
@@ -244,8 +326,8 @@ def main():
         print("Add INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID to GitHub secrets")
         return
     
-    # Select 5 random unique memes
-    selected_memes = random.sample(PISCES_MEMES, 5)
+    # Generate fresh memes and caption using AI
+    selected_memes, caption = generate_pisces_memes_with_ai(5)
     
     image_urls = []
     media_container_ids = []
@@ -285,12 +367,10 @@ def main():
         media_container_ids.append(container_id)
         
         # Small delay to avoid rate limits
+        import time
         time.sleep(1)
     
     print(f"\n🎠 Creating carousel with {len(media_container_ids)} images...")
-    
-    # Select random caption
-    caption = random.choice(CAPTIONS)
     
     # Create carousel container
     carousel_id = create_carousel_container(
