@@ -1,6 +1,4 @@
 
-# post_to_instagram.py
-
 import requests
 import os
 import random
@@ -104,72 +102,16 @@ def get_fallback_caption():
 def get_fallback_memes(count=5):
     """Fallback memes if AI fails"""
     fallback = [
-         "Pisces: cries in the shower\nso no one can tell",
-    "POV: Pisces just felt\na vibe shift",
-    "Pisces avoiding confrontation\nlike it's their job",
-    "Pisces: I'm fine\n(currently having an\nexistential crisis)",
-    "Pisces checking their\nhoroscope 47 times today",
-    "Pisces when someone asks\nhow they're doing: lying",
-    "Pisces daydreaming about\na life they don't have",
-    "Pisces: emotionally unavailable\nbut also desperate for love",
-    "Pisces ghosting everyone\nincluding themselves",
-    "Pisces processing emotions\nat 3am",
-    "Pisces: I need alone time\n(proceeds to feel lonely)",
-    "Pisces overthinking a\nconversation from 2019",
-    "Pisces listening to\nsad music on purpose",
-    "Pisces: master manipulator\n(of their own emotions)",
-    "Pisces pretending they\ndon't care\n(they care so much)",
-    "Pisces having a mental\nbreakdown in the most\nchill way possible",
-    "Pisces: too empathetic\nfor this world",
-    "Pisces reading into texts\nthat don't exist",
-    "Pisces disappearing\nfor no reason",
-    "Pisces: I'll manifest it\n(takes no action)",
-    "Pisces crying over\nsomething beautiful they saw",
-    "Pisces feeling everyone's\nemotions except their own",
-    "Pisces romanticizing\ntheir trauma",
-    "Pisces needs therapy\nbut gets tarot instead",
-    "Pisces living in their\nhead rent free",
-    "Pisces: secretly\njudging everyone",
-    "Pisces when reality hits:\nno thanks",
-    "Pisces running away\nfrom responsibility",
-    "Pisces being psychic about\neveryone except themselves",
-    "Pisces: chronically online and\nemotionally offline",
-    "Pisces vibing in their\nown little world",
-    "Pisces canceling plans they\nnever wanted to make",
-    "Pisces: I'm so over it\n(definitely not over it)",
-    "Pisces self-sabotaging\nfor fun",
-    "Pisces having a spiritual\nawakening at the grocery store",
-    "Pisces: emotionally intelligent\nbut mentally a mess",
-    "Pisces dreaming about a\nbetter life instead of living it",
-    "Pisces taking everything\npersonally",
-    "Pisces: the CEO of escapism",
-    "Pisces making up scenarios\nthat will never happen",
-    "Pisces pretending to be okay\nwhile dying inside",
-    "Pisces: will ghostwrite your\nemotions for free",
-    "Pisces dissociating\nin public places",
-    "Pisces being dramatic\nabout the smallest things",
-    "Pisces: I'm not sensitive\n(extremely sensitive)",
-    "Pisces starting 10 projects\nand finishing none",
-    "Pisces avoiding adulting\nat all costs",
-    "Pisces: chronically tired\nbut can't sleep",
-    "Pisces living in a fantasy\nworld to avoid reality",
-    "Pisces being the therapist\nfriend (needs therapy)",
-    "Pisces forgetting to respond\nfor 3 business days",
-    "Pisces: master of\npassive aggression",
-    "Pisces falling in love with\npotential, not reality",
-    "Pisces creating problems\nthat don't exist yet",
-    "Pisces having main character\nenergy in their head only",
-    "Pisces: professional\noversharer then ghoster",
-    "Pisces being intuitive about\neveryone except red flags",
-    "Pisces collecting hobbies\nlike Pokémon cards",
-    "Pisces: spiritually woke,\nmentally broke",
-    "Pisces making everything\nabout the moon phase",
-    "Pisces needs 8 hours of sleep\nand gets 3",
-    "Pisces: commitment issues\nbut married to delusion",
-    "Pisces overthinking while\npretending to be chill",
-    "Pisces being cryptic\nfor no reason",
-    "Pisces: silently judging\nyour energy",
-    "Pisces living in their feels\n24/7/365",
+        "Pisces: cries in the shower\nso no one can tell",
+        "POV: Pisces just felt\na vibe shift",
+        "Pisces avoiding confrontation\nlike it's their job",
+        "Pisces: I'm fine\n(currently having an\nexistential crisis)",
+        "Pisces ghosting everyone\nincluding themselves",
+        "Pisces processing emotions\nat 3am",
+        "Pisces overthinking a\nconversation from 2019",
+        "Pisces: too empathetic\nfor this world",
+        "Pisces disappearing\nfor no reason",
+        "Pisces living in their\nhead rent free",
     ]
     return random.sample(fallback, min(count, len(fallback)))
 
@@ -294,8 +236,8 @@ def create_carousel_container(media_ids, caption, access_token, account_id):
         print(f"✗ Error creating carousel: {response.text}")
         return None
 
-def publish_instagram_post(container_id, access_token, account_id):
-    """Publish the Instagram post"""
+def publish_instagram_post(container_id, access_token, account_id, max_retries=5):
+    """Publish the Instagram post with retry logic"""
     url = f"https://graph.facebook.com/v18.0/{account_id}/media_publish"
     
     params = {
@@ -303,15 +245,31 @@ def publish_instagram_post(container_id, access_token, account_id):
         'access_token': access_token
     }
     
-    response = requests.post(url, data=params)
+    import time
     
-    if response.status_code == 200:
-        post_id = response.json().get('id')
-        print(f"✅ Successfully posted carousel to Instagram! Post ID: {post_id}")
-        return post_id
-    else:
-        print(f"❌ Error publishing post: {response.text}")
-        return None
+    for attempt in range(max_retries):
+        response = requests.post(url, data=params)
+        
+        if response.status_code == 200:
+            post_id = response.json().get('id')
+            print(f"✅ Successfully posted carousel to Instagram! Post ID: {post_id}")
+            return post_id
+        else:
+            error_data = response.json()
+            error_code = error_data.get('error', {}).get('code')
+            
+            # Error 9007 means media is still processing - wait and retry
+            if error_code == 9007 and attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 10  # 10s, 20s, 30s, etc
+                print(f"⏳ Media still processing, waiting {wait_time}s before retry {attempt + 2}/{max_retries}...")
+                time.sleep(wait_time)
+                continue
+            else:
+                print(f"❌ Error publishing post: {response.text}")
+                return None
+    
+    print(f"❌ Failed to publish after {max_retries} attempts")
+    return None
 
 def main():
     """Main function"""
@@ -383,6 +341,11 @@ def main():
     if not carousel_id:
         print("❌ Failed to create carousel container")
         return
+    
+    # Wait for Instagram to process the media
+    print("⏳ Waiting 15 seconds for Instagram to process media...")
+    import time
+    time.sleep(15)
     
     # Publish the carousel
     print("🚀 Publishing carousel to Instagram...")
