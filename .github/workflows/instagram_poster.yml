@@ -18,12 +18,13 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install requests pillow
+          pip install requests pillow groq
       
       - name: Generate and Post Meme Carousel
         env:
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
           IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python post_to_instagram.py
